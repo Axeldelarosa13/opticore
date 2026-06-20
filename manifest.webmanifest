@@ -1,0 +1,19 @@
+{
+  "name": "OptiCore ERP",
+  "short_name": "OptiCore",
+  "description": "Sistema operativo para opticas: agenda, expedientes, consulta, laboratorio, caja y administracion.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0f766e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

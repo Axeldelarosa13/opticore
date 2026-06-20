@@ -1,0 +1,107 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userRef() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(userRef());
+    }
+
+    function profile() {
+      return get(userRef()).data;
+    }
+
+    function isActive() {
+      return hasProfile() && profile().active == true;
+    }
+
+    function isAdmin() {
+      return isActive() && profile().role == 'Administrador';
+    }
+
+    function hasBranchAccess(branch) {
+      return isAdmin() || profile().branch == 'Global' || profile().branch == branch;
+    }
+
+    function isBusinessCollection(collectionId) {
+      return collectionId in [
+        'patients',
+        'appointments',
+        'doctors',
+        'inventory',
+        'purchases',
+        'sales',
+        'orders',
+        'exams',
+        'followUps'
+      ];
+    }
+
+    function isAdminCollection(collectionId) {
+      return collectionId in [
+        'inventory',
+        'purchases',
+        'sales'
+      ];
+    }
+
+    match /app/{docId} {
+      allow read: if docId == 'config' || isActive();
+      allow create: if signedIn()
+        && docId == 'config'
+        && !exists(/databases/$(database)/documents/app/config)
+        && hasProfile()
+        && profile().role == 'Administrador'
+        && profile().active == true;
+      allow update, delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && !exists(/databases/$(database)/documents/app/config)
+        && request.resource.data.role == 'Administrador'
+        && request.resource.data.active == true;
+
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /{collectionId}/{docId} {
+      allow read: if isBusinessCollection(collectionId)
+        && isActive()
+        && (!isAdminCollection(collectionId) || isAdmin())
+        && (
+          isAdmin()
+          || !('branch' in resource.data)
+          || hasBranchAccess(resource.data.branch)
+        );
+
+      allow create: if isBusinessCollection(collectionId)
+        && isActive()
+        && (!isAdminCollection(collectionId) || isAdmin())
+        && (
+          isAdmin()
+          || !('branch' in request.resource.data)
+          || hasBranchAccess(request.resource.data.branch)
+        );
+
+      allow update, delete: if isBusinessCollection(collectionId)
+        && isActive()
+        && (!isAdminCollection(collectionId) || isAdmin())
+        && (
+          isAdmin()
+          || !('branch' in resource.data)
+          || hasBranchAccess(resource.data.branch)
+        );
+    }
+  }
+}
